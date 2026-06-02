@@ -92,6 +92,13 @@ This runs the script with the default dataset and configuration files copied ins
 
 - **Warmup Window**: For a rolling mean of size `W`, the first `W - 1` rows do not have sufficient history. We represent these values as `None` (NaN equivalent) and **exclude** them from the calculation of the final `signal_rate`.
 - **Signal Logic**: For index $i \ge W - 1$, the rolling mean is computed as:
-  $$\text{rolling\_mean}_i = \frac{1}{W} \sum_{k=i-W+1}^{i} \text{close}_k$$
-  The signal is generated as:
-  $$\text{signal}_i = \begin{cases} 1 & \text{if } \text{close}_i > \text{rolling\_mean}_i \\ 0 & \text{otherwise} \end{cases}$$
+
+$$
+\text{rolling\_mean}_i = \frac{1}{W} \sum_{k=i-W+1}^{i} \text{close}_k
+$$
+
+The signal is generated as:
+
+$$
+\text{signal}_i = \begin{cases} 1 & \text{if } \text{close}_i > \text{rolling\_mean}_i \\ 0 & \text{otherwise} \end{cases}
+$$
