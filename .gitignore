@@ -1,0 +1,4 @@
+primetrade.egg-info/
+.venv
+__pycache__
+.vscode
