@@ -94,11 +94,11 @@ This runs the script with the default dataset and configuration files copied ins
 - **Signal Logic**: For index $i \ge W - 1$, the rolling mean is computed as:
 
 $$
-\text{rolling\_mean}_i = \frac{1}{W} \sum_{k=i-W+1}^{i} \text{close}_k
+\text{rolling mean}_i = \frac{1}{W} \sum_{k=i-W+1}^{i} \text{close}_k
 $$
 
 The signal is generated as:
 
 $$
-\text{signal}_i = \begin{cases} 1 & \text{if } \text{close}_i > \text{rolling\_mean}_i \\ 0 & \text{otherwise} \end{cases}
+\text{signal}_i = \begin{cases} 1 & \text{if } \text{close}_i > \text{rolling mean}_i \\ 0 & \text{otherwise} \end{cases}
 $$
