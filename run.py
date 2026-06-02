@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
 Primetrade.ai - ML/MLOps Engineering Internship Task 0
-Reproducible & Observable Batch Signal Generation Pipeline
+Reproducible & Observable Batch Signal Generation Pipeline (Polars Version)
 """
 
 import argparse
-import csv
+import io
 import json
 import logging
 import os
@@ -13,6 +13,7 @@ import random
 import sys
 import time
 import yaml
+import polars as pl
 
 # Safe Argument Parser to prevent argparse from calling sys.exit on error,
 # allowing us to write the metrics.json error output as required.
@@ -60,7 +61,7 @@ def main():
     
     try:
         # 1. Parse Command Line Arguments Safely
-        parser = SafeArgumentParser(description="MLOps Batch Job Signal Pipeline")
+        parser = SafeArgumentParser(description="MLOps Batch Job Signal Pipeline (Polars)")
         parser.add_argument("--input", required=True, help="Path to the input CSV dataset")
         parser.add_argument("--config", required=True, help="Path to the YAML config file")
         parser.add_argument("--output", default="metrics.json", help="Path to save metrics.json")
@@ -71,7 +72,7 @@ def main():
         
         # 2. Setup Logging
         logger = setup_logging(args.log_file)
-        logger.info("Job started successfully.")
+        logger.info("Job started successfully using Polars engine.")
         
         # 3. Load & Validate Configuration
         logger.info(f"Loading configuration from: {args.config}")
@@ -119,7 +120,7 @@ def main():
             np.random.seed(seed)
             logger.info("Numpy random seed set successfully.")
         except ImportError:
-            pass  # Numpy not installed, standard seed is sufficient
+            pass
             
         # 4. Load & Validate Dataset
         logger.info(f"Loading dataset from: {args.input}")
@@ -129,7 +130,6 @@ def main():
         if os.path.getsize(args.input) == 0:
             raise ValueError("Input dataset file is empty")
             
-        closes = []
         try:
             with open(args.input, 'r', encoding='utf-8') as f:
                 # Preprocess lines to strip outer literal quotes (e.g. '"timestamp,open..."')
@@ -144,48 +144,59 @@ def main():
                 if not processed_lines:
                     raise ValueError("Input dataset contains no readable data rows")
                     
-                reader = csv.DictReader(processed_lines)
-                if not reader.fieldnames:
-                    raise ValueError("CSV structure is invalid: no headers found")
-                    
-                if 'close' not in reader.fieldnames:
-                    raise ValueError("Required column 'close' is missing from the dataset")
-                    
-                for line_num, row in enumerate(reader, start=2):
-                    close_val = row.get('close')
-                    if close_val is None or close_val.strip() == '':
-                        raise ValueError(f"Missing 'close' value on row {line_num}")
-                    try:
-                        closes.append(float(close_val))
-                    except ValueError:
-                        raise ValueError(f"Invalid numeric 'close' value '{close_val}' on row {line_num}")
+                cleaned_csv = "\n".join(processed_lines)
         except Exception as e:
             if isinstance(e, (ValueError, FileNotFoundError)):
                 raise e
-            raise ValueError(f"Failed to parse CSV dataset: {str(e)}")
+            raise ValueError(f"Failed to read input file: {str(e)}")
             
-        rows_processed = len(closes)
+        try:
+            df = pl.read_csv(io.StringIO(cleaned_csv))
+        except Exception as e:
+            raise ValueError(f"Invalid CSV format: {str(e)}")
+            
+        # Validate required column
+        if 'close' not in df.columns:
+            raise ValueError("Required column 'close' is missing from the dataset")
+            
+        # Cast close to Float64 to check for non-numeric values
+        try:
+            if df['close'].dtype == pl.String:
+                df = df.with_columns(pl.col('close').cast(pl.Float64))
+        except Exception as e:
+            raise ValueError(f"Invalid numeric value found in 'close' column: {str(e)}")
+            
+        # Check for null/empty values in the close column
+        if df['close'].null_count() > 0:
+            raise ValueError("Column 'close' contains null or empty values")
+            
+        rows_processed = len(df)
         logger.info(f"Successfully loaded {rows_processed} rows.")
         
-        # 5. Compute Rolling Mean & Generate Signals
+        # 5. Compute Rolling Mean & Generate Signals using Polars
         logger.info(f"Computing rolling mean (window={window}) and generating signals...")
-        signals = []
-        valid_signals = []
         
-        # Warmup period handler: first window-1 rows do not have enough history
-        # We allow NaNs (represented as None in pure Python) and exclude them from signal rate computation.
-        for i in range(rows_processed):
-            if i < window - 1:
-                signals.append(None)
-            else:
-                window_data = closes[i - window + 1 : i + 1]
-                rolling_mean = sum(window_data) / window
-                signal = 1 if closes[i] > rolling_mean else 0
-                signals.append(signal)
-                valid_signals.append(signal)
-                
-        signal_rate = sum(valid_signals) / len(valid_signals) if valid_signals else 0.0
-        # Round value to 4 decimal places for consistency
+        # We specify window_size = window. First window-1 rows automatically get null/NaN
+        # and are excluded from the signal computation.
+        df = df.with_columns(
+            rolling_mean = pl.col('close').rolling_mean(window_size=window)
+        )
+        
+        # Generate signal: 1 if close > rolling_mean else 0
+        df = df.with_columns(
+            signal = pl.when(pl.col('close') > pl.col('rolling_mean'))
+                     .then(1)
+                     .otherwise(0)
+        )
+        
+        # Exclude warmup period (where rolling_mean is null) from the signal rate computation
+        valid_df = df.filter(pl.col('rolling_mean').is_not_null())
+        
+        if len(valid_df) > 0:
+            signal_rate = valid_df['signal'].mean()
+        else:
+            signal_rate = 0.0
+            
         signal_rate_rounded = round(signal_rate, 4)
         
         # 6. Stop timer and compute latency

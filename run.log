@@ -1,8 +1,8 @@
-2026-06-02 15:02:51,784 - INFO - Job started successfully.
-2026-06-02 15:02:51,784 - INFO - Loading configuration from: config.yaml
-2026-06-02 15:02:51,785 - INFO - Config loaded and validated. seed=42, window=5, version=v1
-2026-06-02 15:02:51,785 - INFO - Loading dataset from: data.csv
-2026-06-02 15:02:51,812 - INFO - Successfully loaded 10000 rows.
-2026-06-02 15:02:51,812 - INFO - Computing rolling mean (window=5) and generating signals...
-2026-06-02 15:02:51,816 - INFO - Metrics summary: {"version": "v1", "rows_processed": 10000, "metric": "signal_rate", "value": 0.4991, "latency_ms": 40, "seed": 42, "status": "success"}
-2026-06-02 15:02:51,816 - INFO - Job completed status: success
+2026-06-02 15:54:34,576 - INFO - Job started successfully using Polars engine.
+2026-06-02 15:54:34,576 - INFO - Loading configuration from: config.yaml
+2026-06-02 15:54:34,576 - INFO - Config loaded and validated. seed=42, window=5, version=v1
+2026-06-02 15:54:34,576 - INFO - Loading dataset from: data.csv
+2026-06-02 15:54:34,606 - INFO - Successfully loaded 10000 rows.
+2026-06-02 15:54:34,607 - INFO - Computing rolling mean (window=5) and generating signals...
+2026-06-02 15:54:34,632 - INFO - Metrics summary: {"version": "v1", "rows_processed": 10000, "metric": "signal_rate", "value": 0.4991, "latency_ms": 59, "seed": 42, "status": "success"}
+2026-06-02 15:54:34,632 - INFO - Job completed status: success
